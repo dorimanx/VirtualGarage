@@ -1,0 +1,181 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <ProjectGuid>{F6CA6033-4B1F-4241-ACCB-B43F77745973}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>VirtualGarage</RootNamespace>
+    <AssemblyName>VirtualGarage</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <LangVersion>Default</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <PlatformTarget>x64</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <LangVersion>Default</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Sandbox.Common">
+      <HintPath>$(SolutionDir)\GameBinaries\Sandbox.Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Sandbox.Game">
+      <HintPath>$(SolutionDir)\GameBinaries\Sandbox.Game.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Sandbox.Graphics">
+      <HintPath>$(SolutionDir)\GameBinaries\Sandbox.Graphics.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SpaceEngineers.Game">
+      <HintPath>$(SolutionDir)\GameBinaries\SpaceEngineers.Game.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SpaceEngineers.ObjectBuilders">
+      <HintPath>$(SolutionDir)\GameBinaries\SpaceEngineers.ObjectBuilders.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SpaceEngineers.ObjectBuilders.XmlSerializers">
+      <HintPath>$(SolutionDir)\GameBinaries\SpaceEngineers.ObjectBuilders.XmlSerializers.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Torch">
+      <HintPath>$(SolutionDir)\TorchBinaries\Torch.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Torch.API">
+      <HintPath>$(SolutionDir)\TorchBinaries\Torch.API.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Torch.Server">
+      <HintPath>$(SolutionDir)\TorchBinaries\Torch.Server.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="HavokWrapper">
+      <HintPath>$(SolutionDir)\GameBinaries\HavokWrapper.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Audio">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Audio.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Dedicated">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Dedicated.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Game">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Game.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Game.XmlSerializers">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Game.XmlSerializers.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Input">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Input.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Library">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Math">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Math.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.NativeWrapper">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.NativeWrapper.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Render">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Render.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Render11">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Render11.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="VRage.Scripting">
+      <HintPath>$(SolutionDir)\GameBinaries\VRage.Scripting.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ProtoBuf.Net.Core">
+      <HintPath>$(SolutionDir)\GameBinaries\ProtoBuf.Net.Core.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="NLog">
+      <HintPath>$(SolutionDir)\TorchBinaries\NLog.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationFramework">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="PresentationCore">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="WindowsBase" />
+  </ItemGroup>
+  <ItemGroup>
+    <AppDesigner Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Commands\VirtualGarageHelpCommand.cs" />
+    <Compile Include="Views\UserControl1.xaml.cs">
+      <DependentUpon>UserControl1.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="GridLoad\VirtualGarageLoad.cs" />
+    <Compile Include="Configuration\PluginConfig.cs" />
+    <Compile Include="Plugin.cs" />
+    <Compile Include="Commands\VirtualGarageCommands.cs" />
+    <Compile Include="GridSave\VirtualGarageSave.cs" />
+    <Compile Include="GridSave\VirtualGarageOldGridProcessor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="Views\UserControl1.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Content Include="$(ProjectDir)\manifest.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="Zip" BeforeTargets="AfterBuild">
+    <MakeDir Directories="$(SolutionDir)\Build\" />
+    <ZipDirectory SourceDirectory="$(OutputPath)" DestinationFile="$(SolutionDir)\Build\$(MSBuildProjectName).zip" Overwrite="true" />
+  </Target>
+</Project>

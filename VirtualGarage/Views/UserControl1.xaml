@@ -1,0 +1,36 @@
+<UserControl
+	x:Class="VirtualGarage.UserControlVirtualGarage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:local="clr-namespace:VirtualGarage" 
+    Height="720">
+    <Grid>
+        <TabControl
+			HorizontalAlignment="Left"
+			Height="625"
+			Margin="10,65,0,0"
+			VerticalAlignment="Top"
+			Width="520">
+            <TabItem
+				Header="General">
+                <Grid
+                    Background="#FFE5E5E5">
+                </Grid>
+            </TabItem>
+            <TabItem
+				Header="Chat Responces">
+                <Grid
+                    Background="#FFE5E5E5">
+                </Grid>
+            </TabItem>
+            <TabItem
+				Header="Save Options">
+                <Grid
+					Background="#FFE5E5E5">
+                </Grid>
+            </TabItem>
+            <TabItem
+				Header="Load Options">
+                <Grid
+					Background="#FFE5E5E5"/>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>
