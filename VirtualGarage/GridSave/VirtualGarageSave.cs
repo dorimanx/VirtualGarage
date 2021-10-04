@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NLog;
+using Sandbox.Definitions;
 using Sandbox.Engine.Networking;
 using Sandbox.Engine.Physics;
 using Sandbox.Game.Entities;
@@ -14,6 +15,7 @@ using Torch.Commands;
 using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
+using VRage.ModAPI;
 using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
@@ -25,7 +27,7 @@ namespace VirtualGarage
         public static readonly Logger Log = LogManager.GetCurrentClassLogger();
         public static VirtualGarageSave Instance = new VirtualGarageSave();
 
-        public void SaveGrid(IMyCharacter character, long identityId, CommandContext context = null)
+        public void SaveGrid(IMyCharacter character, long identityId, string gridName, CommandContext context = null)
         {
             var IsItSaved = false;
             MyCubeGrid SelectedGrid = null;
@@ -34,25 +36,69 @@ namespace VirtualGarage
             Vector3D vector3D = headMatrix.Translation + headMatrix.Forward * 0.5f;
             Vector3D worldEnd = headMatrix.Translation + headMatrix.Forward * 5000.5f;
             List<MyPhysics.HitInfo> mRaycastResult = new List<MyPhysics.HitInfo>();
-            MyPhysics.CastRay(vector3D, worldEnd, mRaycastResult, 15);
+            HashSet<IMyEntity> GridSets = new HashSet<IMyEntity>();
+            List<MyCubeGrid> GridsGroup;
 
-            foreach (var hitInfo in new HashSet<MyPhysics.HitInfo>(mRaycastResult))
+            if (gridName != string.Empty)
             {
-                if (hitInfo.HkHitInfo.GetHitEntity() is MyCubeGrid grid)
+                MyAPIGateway.Entities.GetEntities(GridSets, (IMyEntity Entity) => Entity is IMyCubeGrid && Entity.DisplayName.Equals(gridName, StringComparison.InvariantCultureIgnoreCase));
+                if (!GridSets.Any())
                 {
-                    if (grid is null)
+                    context.Respond("No such grid exist with name '" + gridName + "' .", "VirtualGarage", "Red");
+                    return;
+                }
+                foreach (var IEntity in GridSets)
+                {
+                    if (IEntity is null)
                         continue;
 
-                    // make sure not to run again on same grid, mRaycastResult contains atleast 6 times same grid, why KEEN why!
-                    if (SelectedGrid != null && SelectedGrid.EntityId == grid.EntityId)
-                        continue;
+                    // reset velocity
+                    if (IEntity.Physics != null)
+                    {
+                        IEntity.Physics.AngularVelocity = new();
+                        IEntity.Physics.LinearVelocity = new();
+                    }
 
-                    if (SaveGridToVirtualGarage(identityId, grid, context))
+                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes((MyCubeGrid)IEntity);
+
+                    if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                     {
                         IsItSaved = true;
-                        SelectedGrid = grid;
-                        if (grid.BlocksCount > 100)
-                            LastGrid = grid;
+                        LastGrid = (MyCubeGrid)IEntity;
+                    }
+                }
+            }
+            else
+            {
+                MyPhysics.CastRay(vector3D, worldEnd, mRaycastResult, 15);
+
+                foreach (var hitInfo in new HashSet<MyPhysics.HitInfo>(mRaycastResult))
+                {
+                    if (hitInfo.HkHitInfo.GetHitEntity() is MyCubeGrid grid)
+                    {
+                        if (grid is null)
+                            continue;
+
+                        // make sure not to run again on same grid, mRaycastResult contains atleast 6 times same grid, why KEEN why!
+                        if (SelectedGrid != null && SelectedGrid.EntityId == grid.EntityId)
+                            continue;
+
+                        // reset velocity
+                        if (grid.Physics != null)
+                        {
+                            grid.Physics.AngularVelocity = new();
+                            grid.Physics.LinearVelocity = new();
+                        }
+
+                        GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(grid);
+
+                        if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
+                        {
+                            IsItSaved = true;
+                            SelectedGrid = grid;
+                            if (grid.BlocksCount > 100)
+                                LastGrid = grid;
+                        }
                     }
                 }
             }
@@ -63,27 +109,31 @@ namespace VirtualGarage
                 context?.Respond(Plugin.Instance.Config.NoGridInViewResponce);
         }
 
-        public bool SaveGridToVirtualGarage(long identityId, MyCubeGrid myCubeGrid, CommandContext context = null)
+        public bool SaveGridToVirtualGarage(long identityId, List<MyCubeGrid> myCubeGridList, CommandContext context = null)
         {
-            if (!myCubeGrid.BigOwners.Contains(identityId))
+            // check ownership
+            if (myCubeGridList.FirstOrDefault().BigOwners.Count > 0 && !myCubeGridList.FirstOrDefault().BigOwners.Contains(identityId))
             {
-                context?.Respond($"{Plugin.Instance.Config.OnlyOwnerCanSaveResponce} " + myCubeGrid.DisplayName);
+                context?.Respond($"{Plugin.Instance.Config.OnlyOwnerCanSaveResponce} " + myCubeGridList.FirstOrDefault().DisplayName);
                 return false;
             }
 
-            context?.Respond($"{Plugin.Instance.Config.SavingGridResponce} " + myCubeGrid.DisplayName);
+            // check distance from player to grid.
+            if (Vector3D.DistanceSquared(myCubeGridList.FirstOrDefault().PositionComp.GetPosition(), context.Player.Character.GetPosition()) > Plugin.Instance.Config.MaxRangeToGrid * Plugin.Instance.Config.MaxRangeToGrid)
+            {
+                context?.Respond($"{Plugin.Instance.Config.GridToFarResponce} " + myCubeGridList.FirstOrDefault().DisplayName);
+                return false;
+            }
+
+            context?.Respond($"{Plugin.Instance.Config.SavingGridResponce} " + myCubeGridList.FirstOrDefault().DisplayName);
 
             var pathToVirtualGarage = Plugin.Instance.Config.PathToVirtualGarage;
 
-            List<MyCubeGrid> grids = new List<MyCubeGrid>
-            {
-                myCubeGrid
-            };
             int totalpcu = 0;
             int totalblocks = 0;
             List<MyObjectBuilder_CubeGrid> gridsOB = new List<MyObjectBuilder_CubeGrid>();
 
-            foreach (MyCubeGrid сubeGrid in grids)
+            foreach (MyCubeGrid сubeGrid in myCubeGridList)
             {
                 totalpcu += сubeGrid.BlocksPCU;
                 totalblocks += сubeGrid.BlocksCount;
@@ -125,7 +175,7 @@ namespace VirtualGarage
                 gridsOB.Add(objectBuilder);
             }
 
-            if  (totalpcu > Plugin.Instance.Config.MaxPCUForGridOnSave)
+            if (totalpcu > Plugin.Instance.Config.MaxPCUForGridOnSave)
             {
                 context?.Respond(Plugin.Instance.Config.GridPCUOverLimitResponce);
                 return false;
@@ -140,15 +190,16 @@ namespace VirtualGarage
             string gridName = gridsOB[0].DisplayName.Length <= 30
                 ? gridsOB[0].DisplayName
                 : gridsOB[0].DisplayName.Substring(0, 30);
-            string filenameexported = "Time-" + DateTime.Now.ToLongTimeString() + "_PCU-" + totalpcu + "_BL-" + totalblocks + "_" + gridName;
+            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
 
             MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
             newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
+            newObject1.DLCs = GetDLCs(newObject1.CubeGrids);
             newObject1.CubeGrids = gridsOB.ToArray();
             newObject1.RespawnShip = false;
             newObject1.DisplayName = MyGameService.UserName;
             newObject1.OwnerSteamId = Sync.MyId;
-            newObject1.CubeGrids[0].DisplayName = myCubeGrid.DisplayName;
+            newObject1.CubeGrids[0].DisplayName = myCubeGridList.FirstOrDefault().DisplayName;
             MyObjectBuilder_Definitions newObject2 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_Definitions>();
             newObject2.ShipBlueprints = new MyObjectBuilder_ShipBlueprintDefinition[1];
             newObject2.ShipBlueprints[0] = newObject1;
@@ -168,11 +219,35 @@ namespace VirtualGarage
 
             MyAPIGateway.Utilities.InvokeOnGameThread(() =>
            {
-               foreach (MyEntity myEntity in grids)
+               foreach (MyEntity myEntity in myCubeGridList)
                    myEntity.Close();
            });
 
             return true;
+        }
+
+        private static string[] GetDLCs(MyObjectBuilder_CubeGrid[] cubeGrids)
+        {
+            if (cubeGrids.IsNullOrEmpty())
+                return null;
+
+            var hashSet = new HashSet<string>();
+            foreach (var GridEntity in cubeGrids)
+            {
+                foreach (var cubeBlock in GridEntity.CubeBlocks)
+                {
+                    var GetBlockDefinition = MyDefinitionManager.Static.GetCubeBlockDefinition(cubeBlock);
+                    if (GetBlockDefinition is null || GetBlockDefinition.DLCs is null)
+                        continue;
+
+                    if (GetBlockDefinition.DLCs.Length > 0)
+                    {
+                        foreach (var DLCName in GetBlockDefinition.DLCs)
+                            hashSet.Add(DLCName);
+                    }
+                }
+            }
+            return hashSet.ToArray();
         }
     }
 }

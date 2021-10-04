@@ -69,7 +69,7 @@ namespace VirtualGarage
 
         [Command("save", "Save grid by looking at its position", null)]
         [Permission(MyPromoteLevel.None)]
-        public void Reload()
+        public void SaveGridToStorage(string gridName = "")
         {
             var player = Context.Player;
             if (player is null)
@@ -96,7 +96,9 @@ namespace VirtualGarage
                 if (player.Character == null)
                     return;
 
-                VirtualGarageSave.Instance.SaveGrid(player.Character, player.IdentityId, Context);
+                Log.Warn("VirtualGarage:" + Context.Player.DisplayName + " send *!g save " + gridName + "*");
+
+                VirtualGarageSave.Instance.SaveGrid(player.Character, player.IdentityId, gridName, Context);
             }
             catch (Exception e)
             {
@@ -169,7 +171,7 @@ namespace VirtualGarage
                 
                 foreach (var GridInList in cubeGridsList)
                 {
-                    Context.Respond($"{Plugin.Instance.Config.GridSpawnedToWorldRespond} :{spawnPosition} :{GridInList?.DisplayName}");
+                    Context.Respond($"{Plugin.Instance.Config.GridSpawnedToWorldRespond} :{GridInList?.DisplayName}");
                     Log.Info("Структура: " + GridInList?.DisplayName + " перенесена в мир");
                 }
 

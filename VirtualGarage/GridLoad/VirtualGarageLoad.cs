@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Sandbox.Game.Entities;
 using Sandbox.Game.GUI;
 using Sandbox.ModAPI;
@@ -67,14 +66,6 @@ namespace VirtualGarage
 
         public static void AddGps(MyCubeGrid grid, long myPlayerIdentity)
         {
-            grid.Physics?.ClearSpeed();
-
-            if (Plugin.Instance.Config.ConvertToStatic && !Plugin.Instance.Config.ConvertToDynamic)
-                grid.OnConvertedToStationRequest();
-
-            if (Plugin.Instance.Config.ConvertToDynamic && !Plugin.Instance.Config.ConvertToStatic)
-                grid.OnConvertToDynamic();
-
             var gridGPS = MyAPIGateway.Session?.GPS.Create(grid.DisplayName, grid.DisplayName, grid.PositionComp.GetPosition(), true, true);
             gridGPS.GPSColor = Color.Yellow;
             MyAPIGateway.Session?.GPS.AddGps(myPlayerIdentity, gridGPS);
@@ -85,34 +76,59 @@ namespace VirtualGarage
             MyAPIGateway.Entities.RemapObjectBuilderCollection(cubeGrids);
             RemapOwnership(cubeGrids, masterIdentityId);
 
-            var vector3D = cubeGrids[0].PositionAndOrientation.GetValueOrDefault().Position + Vector3D.Zero;
+            var NewVector3D = cubeGrids[0].PositionAndOrientation.GetValueOrDefault().Position + Vector3D.Zero;
+            var delta = cubeGrids[0].PositionAndOrientation!.Value.Position + Vector3D.Zero;
+
+            // make sure admin didnt failed!
+            if (Plugin.Instance.Config.ConvertToStatic && Plugin.Instance.Config.ConvertToDynamic)
+            {
+                Plugin.Instance.Config.ConvertToDynamic = false;
+            }
 
             for (int index = 0; index < cubeGrids.Length; ++index)
             {
-                MyObjectBuilder_CubeGrid cubeGrid = cubeGrids[index];
+                var cubeGrid = cubeGrids[index];
 
                 if (index == 0)
                 {
+                    if (cubeGrid.GridSizeEnum == MyCubeSize.Large)
+                    {
+                        if (Plugin.Instance.Config.ConvertToStatic && !Plugin.Instance.Config.ConvertToDynamic)
+                        {
+                            cubeGrid.IsStatic = true;
+                            cubeGrid.IsUnsupportedStation = true;
+                        }
+
+                        if (Plugin.Instance.Config.ConvertToDynamic && !Plugin.Instance.Config.ConvertToStatic)
+                        {
+                            cubeGrid.IsStatic = false;
+                            cubeGrid.IsUnsupportedStation = false;
+                        }
+                    }
+
                     if (cubeGrid.PositionAndOrientation.HasValue)
                     {
-                        MyPositionAndOrientation valueOrDefault = cubeGrid.PositionAndOrientation.GetValueOrDefault();
+                        var valueOrDefault = cubeGrid.PositionAndOrientation.GetValueOrDefault();
                         valueOrDefault.Position = position;
                         cubeGrid.PositionAndOrientation = new MyPositionAndOrientation?(valueOrDefault);
-                        vector3D = cubeGrid.PositionAndOrientation.GetValueOrDefault().Position + Vector3D.Zero;
+                        NewVector3D = cubeGrid.PositionAndOrientation.GetValueOrDefault().Position + Vector3D.Zero;
                     }
                 }
                 else
                 {
-                    MyPositionAndOrientation valueOrDefault = cubeGrid.PositionAndOrientation.GetValueOrDefault();
-                    valueOrDefault.Position -= vector3D;
+                    var valueOrDefault = cubeGrid.PositionAndOrientation.GetValueOrDefault();
+                    valueOrDefault.Position = NewVector3D + valueOrDefault.Position - delta;
                     cubeGrid.PositionAndOrientation = valueOrDefault;
                 }
+
+                // reset velocity
+                cubeGrid.AngularVelocity = new();
+                cubeGrid.LinearVelocity = new();
             }
 
-            //TODO: Добавить проверку на коллизии
-            for (int index = 0; index < cubeGrids.Length; ++index)
+            foreach (var GridEntity in cubeGrids)
             {
-                MyAPIGateway.Entities.CreateFromObjectBuilderParallel(cubeGrids[index], completionCallback: new Action<IMyEntity>(entity =>
+                MyAPIGateway.Entities.CreateFromObjectBuilderParallel(GridEntity, completionCallback: new Action<IMyEntity>(entity =>
                 {
                     ((MyCubeGrid)entity).DetectDisconnectsAfterFrame();
                     MyAPIGateway.Entities.AddEntity(entity);

@@ -7,6 +7,7 @@ using Sandbox.Game.Entities;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.World;
 using Sandbox.ModAPI;
+using VRage.Game.ModAPI;
 
 namespace VirtualGarage
 {
@@ -44,6 +45,8 @@ namespace VirtualGarage
 
         private void CheckAllGrids(IEnumerable<MyCubeGrid> myCubeGrids)
         {
+            List<MyCubeGrid> GridsGroup;
+
             foreach (var myCubeGrid in myCubeGrids)
             {
                 MyAPIGateway.Utilities.InvokeOnGameThread(() =>
@@ -67,10 +70,12 @@ namespace VirtualGarage
                         var totalDays = (DateTime.Now - lastLogoutTime).TotalDays;
                         if (totalDays > Plugin.Instance.Config.OldGridDays)
                         {
+                            GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(myCubeGrid);
+
                             Log.Warn("Товарища " + owner + " нет с нами уже " + totalDays +
                                      " дней, приберём его грид " +
                                      myCubeGrid.DisplayName + " в гараж");
-                            VirtualGarageSave.Instance.SaveGridToVirtualGarage(owner, myCubeGrid);
+                            VirtualGarageSave.Instance.SaveGridToVirtualGarage(owner, GridsGroup);
                         }
                     }
                     catch (Exception e)

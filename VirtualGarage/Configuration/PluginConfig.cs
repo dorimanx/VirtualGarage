@@ -14,6 +14,8 @@ namespace VirtualGarage
         private bool _ConvertToDynamic;
 
         private float _MaxSpawnRadius = 500;
+        private float _MaxRangeToGrid = 1000;
+
         private int _OldGridDays = 7;
         private int _MaxPCUForGridOnSave = 300000;
         private int _MaxBlocksForGridOnSave = 30000;
@@ -31,6 +33,7 @@ namespace VirtualGarage
         private string _NoGridsInVirtualGarageRespond = "No grids found in garage!";
         private string _GridsInVirtualGarageRespond = "List of your grid in garage.";
         private string _NoGridInViewResponce = "There is no grid in view";
+        private string _GridToFarResponce = "Grid is too far from you!";
 
 
         public bool ChangeBuiltBy
@@ -61,6 +64,12 @@ namespace VirtualGarage
         {
             get => _MaxSpawnRadius;
             set => SetValue(ref _MaxSpawnRadius, value);
+        }
+
+        public float MaxRangeToGrid
+        {
+            get => _MaxRangeToGrid;
+            set => SetValue(ref _MaxRangeToGrid, value);
         }
 
         public int OldGridDays
@@ -169,6 +178,12 @@ namespace VirtualGarage
         {
             get => _NoGridInViewResponce;
             set => SetValue(ref _NoGridInViewResponce, value);
+        }
+
+        public string GridToFarResponce
+        {
+            get => _GridToFarResponce;
+            set => SetValue(ref _GridToFarResponce, value);
         }
     }
 }
