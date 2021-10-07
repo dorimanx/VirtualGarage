@@ -79,6 +79,10 @@ namespace VirtualGarage
                         if (grid is null)
                             continue;
 
+                        // ignore projected grid.
+                        if (grid.IsPreview)
+                            continue;
+
                         // make sure not to run again on same grid, mRaycastResult contains atleast 6 times same grid, why KEEN why!
                         if (SelectedGrid != null && SelectedGrid.EntityId == grid.EntityId)
                             continue;
@@ -222,6 +226,95 @@ namespace VirtualGarage
                foreach (MyEntity myEntity in myCubeGridList)
                    myEntity.Close();
            });
+
+            return true;
+        }
+
+        public bool SaveOldGridToVirtualGarage(long identityId, List<MyCubeGrid> myCubeGridList)
+        {
+            var pathToVirtualGarage = Plugin.Instance.Config.PathToVirtualGarage;
+
+            int totalpcu = 0;
+            int totalblocks = 0;
+            List<MyObjectBuilder_CubeGrid> gridsOB = new List<MyObjectBuilder_CubeGrid>();
+
+            foreach (MyCubeGrid сubeGrid in myCubeGridList)
+            {
+                totalpcu += сubeGrid.BlocksPCU;
+                totalblocks += сubeGrid.BlocksCount;
+
+                try
+                {
+                    foreach (MyCubeBlock fatBlock in сubeGrid.GetFatBlocks())
+                    {
+                        MyCubeBlock c = fatBlock;
+                        if (c is MyCockpit)
+                            (c as MyCockpit).RemovePilot();
+
+                        if (c is MyProgrammableBlock)
+                        {
+                            try
+                            {
+                                Plugin.m_myProgrammableBlockKillProgramm.Invoke(
+                                    c as MyProgrammableBlock, new object[1]
+                                    {
+                                         MyProgrammableBlock.ScriptTerminationReason.None
+                                    });
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "MyProgrammableBlock hack eval");
+                            }
+                        }
+
+                        if (c is MyShipDrill)
+                            (c as MyShipDrill).Enabled = false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "(SaveGrid)Exception in block disables ex");
+                }
+
+                MyObjectBuilder_CubeGrid objectBuilder = (MyObjectBuilder_CubeGrid)сubeGrid.GetObjectBuilder(true);
+                gridsOB.Add(objectBuilder);
+            }
+
+            string gridName = gridsOB[0].DisplayName.Length <= 30
+                ? gridsOB[0].DisplayName
+                : gridsOB[0].DisplayName.Substring(0, 30);
+            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
+
+            MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
+            newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
+            newObject1.DLCs = GetDLCs(newObject1.CubeGrids);
+            newObject1.CubeGrids = gridsOB.ToArray();
+            newObject1.RespawnShip = false;
+            newObject1.DisplayName = MyGameService.UserName;
+            newObject1.OwnerSteamId = Sync.MyId;
+            newObject1.CubeGrids[0].DisplayName = myCubeGridList.FirstOrDefault().DisplayName;
+            MyObjectBuilder_Definitions newObject2 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_Definitions>();
+            newObject2.ShipBlueprints = new MyObjectBuilder_ShipBlueprintDefinition[1];
+            newObject2.ShipBlueprints[0] = newObject1;
+
+            string str = Path.Combine(pathToVirtualGarage, MyAPIGateway.Players.TryGetSteamId(identityId).ToString());
+            if (!Directory.Exists(str))
+                Directory.CreateDirectory(str);
+
+            foreach (char ch in ((IEnumerable<char>)Path.GetInvalidPathChars()).Concat(Path.GetInvalidFileNameChars()))
+            {
+                filenameexported = filenameexported.Replace(ch.ToString(), ".");
+            }
+
+            string path = Path.Combine(str, filenameexported + ".sbc");
+            if (MyObjectBuilderSerializer.SerializeXML(path, false, newObject2))
+                MyObjectBuilderSerializer.SerializePB(path + "B5", true, newObject2);
+
+            MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+            {
+                foreach (MyEntity myEntity in myCubeGridList)
+                    myEntity.Close();
+            });
 
             return true;
         }

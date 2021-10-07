@@ -30,7 +30,8 @@ namespace VirtualGarage
                 {
                     await Task.Delay(30000);
                     var myCubeGrids = MyEntities.GetEntities().OfType<MyCubeGrid>();
-                    await Task.Run(() => { CheckAllGrids(myCubeGrids); });
+                    var PlayersList = MySession.Static.Players.GetAllIdentities().ToList();
+                    await Task.Run(() => { CheckAllGrids(myCubeGrids, PlayersList); });
                 }
                 catch (Exception e)
                 {
@@ -43,12 +44,15 @@ namespace VirtualGarage
             }
         }
 
-        private void CheckAllGrids(IEnumerable<MyCubeGrid> myCubeGrids)
+        private void CheckAllGrids(IEnumerable<MyCubeGrid> myCubeGrids, List<MyIdentity> PlayersList)
         {
-            List<MyCubeGrid> GridsGroup;
+            List<MyCubeGrid> GridsGroup = new List<MyCubeGrid>();
 
             foreach (var myCubeGrid in myCubeGrids)
             {
+                if (myCubeGrid is null || myCubeGrid.Closed || myCubeGrid.MarkedForClose)
+                    continue;
+
                 MyAPIGateway.Utilities.InvokeOnGameThread(() =>
                 {
                     try
@@ -57,25 +61,45 @@ namespace VirtualGarage
                             return;
 
                         var bigOwners = myCubeGrid.BigOwners;
-                        if (bigOwners == null || bigOwners.Count == 0)
+                        if (bigOwners == null || bigOwners.Count < 1)
                             return;
 
-                        var owner = bigOwners[0];
+                        var owner = bigOwners.FirstOrDefault();
+
+                        if (MySession.Static.Players.IdentityIsNpc(owner))
+                            return;
+
                         var steamId = MySession.Static.Players.TryGetSteamId(owner);
                         if (steamId == 0)
                             return;
 
-                        var identityById = Sync.Players.TryGetIdentity(owner);
-                        var lastLogoutTime = identityById.LastLogoutTime;
+                        var MyidentityById = Sync.Players.TryGetIdentity(owner);
+                        if (MyidentityById is null)
+                            return;
+
+                        var lastLogoutTime = MyidentityById.LastLogoutTime;
                         var totalDays = (DateTime.Now - lastLogoutTime).TotalDays;
+
                         if (totalDays > Plugin.Instance.Config.OldGridDays)
                         {
                             GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(myCubeGrid);
+                            if (GridsGroup is null)
+                                return;
 
-                            Log.Warn("Товарища " + owner + " нет с нами уже " + totalDays +
-                                     " дней, приберём его грид " +
-                                     myCubeGrid.DisplayName + " в гараж");
-                            VirtualGarageSave.Instance.SaveGridToVirtualGarage(owner, GridsGroup);
+                            var PlayerName = owner.ToString();
+
+                            foreach (var PlayerEntity in PlayersList)
+                            {
+                                if (PlayerEntity != null && PlayerEntity.IdentityId == MyidentityById.IdentityId)
+                                    PlayerName = PlayerEntity.DisplayName;
+                            }
+
+                            if (PlayerName == string.Empty)
+                                PlayerName = "Unknown BOB";
+
+                            Log.Warn("Товарища " + PlayerName + " нет с нами уже " + totalDays + " дней, приберём его грид " + myCubeGrid.DisplayName + " в гараж");
+
+                            VirtualGarageSave.Instance.SaveOldGridToVirtualGarage(owner, GridsGroup);
                         }
                     }
                     catch (Exception e)
