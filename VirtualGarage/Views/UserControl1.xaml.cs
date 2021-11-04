@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using Torch.API;
-using Torch.Views;
+﻿using System.Windows.Controls;
 
-namespace VirtualGarage
+ namespace VirtualGarage
 {
     public partial class UserControlVirtualGarage : UserControl
     {
@@ -15,6 +9,7 @@ namespace VirtualGarage
         public UserControlVirtualGarage()
         {
             InitializeComponent();
+            MainFilteredGrid.DataContext = Plugin.Instance.Config;
         }
 
         public UserControlVirtualGarage(Plugin plugin) : this()
