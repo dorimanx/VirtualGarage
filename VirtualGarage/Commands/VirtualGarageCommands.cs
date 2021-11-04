@@ -108,7 +108,7 @@ namespace VirtualGarage
 
         [Command("load", "Load grid from VirtualGarage by number", null)]
         [Permission(MyPromoteLevel.None)]
-        public void Load(int index)
+        public void Load(int index, bool spawnDynamic = false)
         {
             string str = Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString());
             if (!Directory.Exists(str))
@@ -164,7 +164,7 @@ namespace VirtualGarage
 
             if (spawnPosition != null)
             {
-                VirtualGarageLoad.DoSpawnGrids(identityId, gridNameToLoad, (Vector3D)spawnPosition, (grid, identity) => VirtualGarageLoad.AddGps(grid, identity));
+                VirtualGarageLoad.DoSpawnGrids(identityId, gridNameToLoad, (Vector3D)spawnPosition, (grid, identity) => VirtualGarageLoad.AddGps(grid, identity), spawnDynamic);
 
                 MyObjectBuilder_Definitions PrefabToLoad = MyBlueprintUtils.LoadPrefab(gridNameToLoad);
                 MyObjectBuilder_CubeGrid[] cubeGridsList = PrefabToLoad.ShipBlueprints[0].CubeGrids;

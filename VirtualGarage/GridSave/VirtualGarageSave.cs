@@ -55,8 +55,8 @@ namespace VirtualGarage
                     // reset velocity
                     if (IEntity.Physics != null)
                     {
-                        IEntity.Physics.AngularVelocity = new();
-                        IEntity.Physics.LinearVelocity = new();
+                        IEntity.Physics.AngularVelocity = new Vector3();
+                        IEntity.Physics.LinearVelocity = new Vector3();
                     }
 
                     GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes((MyCubeGrid)IEntity);
@@ -90,8 +90,8 @@ namespace VirtualGarage
                         // reset velocity
                         if (grid.Physics != null)
                         {
-                            grid.Physics.AngularVelocity = new();
-                            grid.Physics.LinearVelocity = new();
+                            grid.Physics.AngularVelocity = new Vector3();
+                            grid.Physics.LinearVelocity = new Vector3();
                         }
 
                         GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(grid);

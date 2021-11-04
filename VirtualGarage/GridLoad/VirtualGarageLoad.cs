@@ -20,12 +20,12 @@ namespace VirtualGarage
     {
         public static VirtualGarageLoad Instance = new VirtualGarageLoad();
 
-        public static void DoSpawnGrids(long masterIdentityId, string str, Vector3D spawnPosition, Delegate.AddListenerDelegate addListenerDelegate = null)
+        public static void DoSpawnGrids(long masterIdentityId, string str, Vector3D spawnPosition, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
         {
             MyObjectBuilder_Definitions loadedPrefab = MyBlueprintUtils.LoadPrefab(str);
             MyObjectBuilder_CubeGrid[] cubeGrids = loadedPrefab.ShipBlueprints[0].CubeGrids;
 
-            SpawnSomeGrids(cubeGrids, spawnPosition, masterIdentityId, addListenerDelegate);
+            SpawnSomeGrids(cubeGrids, spawnPosition, masterIdentityId, addListenerDelegate, convertToDynamic);
         }
 
         public static void RemapOwnership(MyObjectBuilder_CubeGrid[] cubeGrids, long new_owner)
@@ -71,7 +71,7 @@ namespace VirtualGarage
             MyAPIGateway.Session?.GPS.AddGps(myPlayerIdentity, gridGPS);
         }
 
-        public static void SpawnSomeGrids(MyObjectBuilder_CubeGrid[] cubeGrids, Vector3D position, long masterIdentityId, Delegate.AddListenerDelegate addListenerDelegate = null)
+        public static void SpawnSomeGrids(MyObjectBuilder_CubeGrid[] cubeGrids, Vector3D position, long masterIdentityId, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
         {
             MyAPIGateway.Entities.RemapObjectBuilderCollection(cubeGrids);
             RemapOwnership(cubeGrids, masterIdentityId);
@@ -99,7 +99,7 @@ namespace VirtualGarage
                             cubeGrid.IsUnsupportedStation = true;
                         }
 
-                        if (Plugin.Instance.Config.ConvertToDynamic && !Plugin.Instance.Config.ConvertToStatic)
+                        if ((Plugin.Instance.Config.ConvertToDynamic && !Plugin.Instance.Config.ConvertToStatic) || convertToDynamic)
                         {
                             cubeGrid.IsStatic = false;
                             cubeGrid.IsUnsupportedStation = false;
@@ -122,8 +122,8 @@ namespace VirtualGarage
                 }
 
                 // reset velocity
-                cubeGrid.AngularVelocity = new();
-                cubeGrid.LinearVelocity = new();
+                cubeGrid.AngularVelocity = new Vector3();
+                cubeGrid.LinearVelocity = new Vector3();
             }
 
             foreach (var GridEntity in cubeGrids)

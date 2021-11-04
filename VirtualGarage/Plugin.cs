@@ -29,9 +29,9 @@ namespace VirtualGarage
 
         public override void Init(ITorchBase torch)
         {
+            SetupConfig();
             base.Init(torch);
             Instance = this;
-            SetupConfig();
 
             _sessionManager = Torch.Managers.GetManager<TorchSessionManager>();
             if (_sessionManager == null)
