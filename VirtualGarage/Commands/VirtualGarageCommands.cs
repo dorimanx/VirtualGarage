@@ -106,9 +106,16 @@ namespace VirtualGarage
             }
         }
 
+        [Command("loadbase", "Load grid from VirtualGarage by number in the same coordinates", null)]
+        [Permission(MyPromoteLevel.None)]
+        public void LoadBase(int index)
+        {
+            Load(index, false, true);
+        }
+
         [Command("load", "Load grid from VirtualGarage by number", null)]
         [Permission(MyPromoteLevel.None)]
-        public void Load(int index, bool spawnDynamic = false)
+        public void Load(int index, bool spawnDynamic = false, bool loadbase = false)
         {
             string str = Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString());
             if (!Directory.Exists(str))
@@ -139,7 +146,7 @@ namespace VirtualGarage
 
             _ = MyGravityProviderSystem.CalculateNaturalGravityInPoint(character.GetPosition(), out float naturalGravityMultiplier);
 
-            if (naturalGravityMultiplier > Plugin.Instance.Config.MinAllowedGravityToLoad)
+            if (!loadbase && naturalGravityMultiplier > Plugin.Instance.Config.MinAllowedGravityToLoad)
             {
                 Context.Respond($"{Plugin.Instance.Config.VirtualGarageNotAllowedInGravityMoreThanResponce} > {Plugin.Instance.Config.MinAllowedGravityToLoad}");
                 return;
@@ -160,11 +167,15 @@ namespace VirtualGarage
                 }
             }
 
-            var spawnPosition = VirtualGarageLoad.SpawnPosition(character);
-
-            if (spawnPosition != null)
+            Vector3D? spawnPosition = null;
+            if (!loadbase)
             {
-                VirtualGarageLoad.DoSpawnGrids(identityId, gridNameToLoad, (Vector3D)spawnPosition, (grid, identity) => VirtualGarageLoad.AddGps(grid, identity), spawnDynamic);
+                spawnPosition = VirtualGarageLoad.SpawnPosition(character);
+            }
+            
+            if (loadbase || spawnPosition != null)
+            {
+                VirtualGarageLoad.DoSpawnGrids(identityId, gridNameToLoad, spawnPosition, (grid, identity) => VirtualGarageLoad.AddGps(grid, identity), spawnDynamic);
 
                 MyObjectBuilder_Definitions PrefabToLoad = MyBlueprintUtils.LoadPrefab(gridNameToLoad);
                 MyObjectBuilder_CubeGrid[] cubeGridsList = PrefabToLoad.ShipBlueprints[0].CubeGrids;

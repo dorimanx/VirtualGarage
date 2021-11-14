@@ -20,7 +20,7 @@ namespace VirtualGarage
     {
         public static VirtualGarageLoad Instance = new VirtualGarageLoad();
 
-        public static void DoSpawnGrids(long masterIdentityId, string str, Vector3D spawnPosition, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
+        public static void DoSpawnGrids(long masterIdentityId, string str, Vector3D? spawnPosition, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
         {
             MyObjectBuilder_Definitions loadedPrefab = MyBlueprintUtils.LoadPrefab(str);
             MyObjectBuilder_CubeGrid[] cubeGrids = loadedPrefab.ShipBlueprints[0].CubeGrids;
@@ -71,7 +71,7 @@ namespace VirtualGarage
             MyAPIGateway.Session?.GPS.AddGps(myPlayerIdentity, gridGPS);
         }
 
-        public static void SpawnSomeGrids(MyObjectBuilder_CubeGrid[] cubeGrids, Vector3D position, long masterIdentityId, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
+        public static void SpawnSomeGrids(MyObjectBuilder_CubeGrid[] cubeGrids, Vector3D? position, long masterIdentityId, Delegate.AddListenerDelegate addListenerDelegate = null, bool convertToDynamic = false)
         {
             MyAPIGateway.Entities.RemapObjectBuilderCollection(cubeGrids);
             RemapOwnership(cubeGrids, masterIdentityId);
@@ -109,7 +109,10 @@ namespace VirtualGarage
                     if (cubeGrid.PositionAndOrientation.HasValue)
                     {
                         var valueOrDefault = cubeGrid.PositionAndOrientation.GetValueOrDefault();
-                        valueOrDefault.Position = position;
+                        if (position != null)
+                        {
+                            valueOrDefault.Position = (Vector3D) position;
+                        }
                         cubeGrid.PositionAndOrientation = new MyPositionAndOrientation?(valueOrDefault);
                         NewVector3D = cubeGrid.PositionAndOrientation.GetValueOrDefault().Position + Vector3D.Zero;
                     }

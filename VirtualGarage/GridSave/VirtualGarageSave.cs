@@ -102,6 +102,7 @@ namespace VirtualGarage
                             SelectedGrid = grid;
                             if (grid.BlocksCount > 100)
                                 LastGrid = grid;
+                            break;
                         }
                     }
                 }
