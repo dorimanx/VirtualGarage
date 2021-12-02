@@ -241,6 +241,18 @@ namespace VirtualGarage
 
             foreach (MyCubeGrid сubeGrid in myCubeGridList)
             {
+                
+                var bigOwners = сubeGrid.BigOwners;
+                if (bigOwners != null)
+                {
+                    if (!AllOwnersOld(bigOwners))
+                    {
+                        continue;
+                    }
+                }
+
+                var owner = bigOwners.FirstOrDefault();
+
                 totalpcu += сubeGrid.BlocksPCU;
                 totalblocks += сubeGrid.BlocksCount;
 
@@ -317,6 +329,25 @@ namespace VirtualGarage
                     myEntity.Close();
             });
 
+            return true;
+        }
+
+        private static bool AllOwnersOld(List<long> bigOwners)
+        {
+            foreach (var bigOwner in bigOwners)
+            {
+                var MyidentityById = Sync.Players.TryGetIdentity(bigOwner);
+                if (MyidentityById is null)
+                    continue;
+
+                var lastLogoutTime = MyidentityById.LastLogoutTime;
+                var totalDays = (DateTime.Now - lastLogoutTime).TotalDays;
+
+                if (totalDays < Plugin.Instance.Config.OldGridDays)
+                {
+                    return false;
+                }
+            }
             return true;
         }
 
