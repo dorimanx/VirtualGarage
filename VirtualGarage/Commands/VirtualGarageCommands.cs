@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using Sandbox.Game.GameSystems;
 using Sandbox.Game.GUI;
@@ -25,45 +26,48 @@ namespace VirtualGarage
         {
             try
             {
-                IMyPlayer player = Context.Player;
-                if (player is null)
+                IMyPlayer player = this.Context.Player;
+                if (player == null)
                     return;
-
                 long identityId = player.IdentityId;
-                var pathToVirtualGarage = Plugin.Instance.Config.PathToVirtualGarage;
-                string str = Path.Combine(pathToVirtualGarage, MyAPIGateway.Players.TryGetSteamId(identityId).ToString());
-                if (!Directory.Exists(str))
+                if (!Directory.Exists(Path.Combine(Plugin.Instance.Config.PathToVirtualGarage,
+                        MyAPIGateway.Players.TryGetSteamId(identityId).ToString())))
                 {
-                    Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond);
-                    return;
+                    this.Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond, (string) null,
+                        (string) null);
                 }
-
-                var files = Directory.GetFiles(Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString()), "*.sbc");
-                var listFiles = new List<string>(files).FindAll(s => s.EndsWith(".sbc"));
-
-                if (files.Length == 0 || listFiles.Count() == 0)
+                else
                 {
-                    Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond);
-                    return;
+                    string[] files =
+                        Directory.GetFiles(
+                            Path.Combine(Plugin.Instance.Config.PathToVirtualGarage,
+                                this.Context.Player.SteamUserId.ToString()), "*.sbc");
+                    System.Collections.Generic.List<string> all =
+                        new System.Collections.Generic.List<string>((IEnumerable<string>) files).FindAll(
+                            (Predicate<string>) (s => s.EndsWith(".sbc")));
+                    if (files.Length == 0 || all.Count<string>() == 0)
+                    {
+                        this.Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond, (string) null,
+                            (string) null);
+                    }
+                    else
+                    {
+                        System.Collections.Generic.List<string> resultListFiles =
+                            new System.Collections.Generic.List<string>();
+                        all.SortNoAlloc<string>((Comparison<string>) ((s, s1) =>
+                            string.Compare(s, s1, StringComparison.Ordinal)));
+                        all.ForEach((Action<string>) (s => resultListFiles.Add(s.Replace(".sbc", ""))));
+                        string str = Plugin.Instance.Config.GridsInVirtualGarageRespond + " \n";
+                        for (int index = 1; index < resultListFiles.Count + 1; ++index)
+                            str = string.Format("{0}{1}. {2}\n", (object) str, (object) index,
+                                (object) Path.GetFileName(resultListFiles[index - 1]));
+                        this.Context.Respond(str, (string) null, (string) null);
+                    }
                 }
-
-                var resultListFiles = new List<string>();
-
-                listFiles.SortNoAlloc((s, s1) => string.Compare(s, s1, StringComparison.Ordinal));
-                listFiles.ForEach(s => resultListFiles.Add(s.Replace(".sbc", "")));
-
-                string respond = $"{Plugin.Instance.Config.GridsInVirtualGarageRespond} \n";
-
-                for (var i = 1; i < resultListFiles.Count + 1; i++)
-                {
-                    respond = $"{respond}{i}. {Path.GetFileName(resultListFiles[i - 1])}\n";
-                }
-
-                Context.Respond(respond);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Log.Error(e);
+                VirtualGarageCommands.Log.Error<Exception>(ex);
             }
         }
 
@@ -71,23 +75,30 @@ namespace VirtualGarage
         [Permission(MyPromoteLevel.None)]
         public void SaveGridToStorage(string gridName = "")
         {
-            var player = Context.Player;
-            if (player is null)
+            DoSaveGrid(gridName);
+        }
+
+        private void DoSaveGrid(string gridName)
+        {
+            IMyPlayer player = this.Context.Player;
+            if (player == null)
                 return;
-
-            var players = new List<IMyPlayer>();
+            System.Collections.Generic.List<IMyPlayer> players = new System.Collections.Generic.List<IMyPlayer>();
             MyAPIGateway.Players.GetPlayers(players);
-
-            foreach (var myPlayer in players)
+            foreach (IMyPlayer myPlayer in players)
             {
-                if (myPlayer.GetRelationTo(player.IdentityId) != MyRelationsBetweenPlayerAndBlock.Enemies)
-                    continue;
-
-                var distance = Vector3D.Distance(myPlayer.GetPosition(), player.Character.GetPosition());
-                if (distance < Plugin.Instance.Config.EnemyPlayerInRange)
+                if (myPlayer.GetRelationTo(player.IdentityId) == MyRelationsBetweenPlayerAndBlock.Enemies)
                 {
-                    Context.Respond(Plugin.Instance.Config.EnemyNearByChatRespond);
-                    return;
+                    IMyCharacter character = myPlayer.Character;
+                    if (!myPlayer.IsBot && character != null && !character.IsDead && character.IsPlayer &&
+                        Vector3D.Distance(myPlayer.GetPosition(), player.Character.GetPosition()) <
+                        Plugin.Instance.Config.EnemyPlayerInRange)
+                    {
+                        VirtualGarageCommands.Log.Warn("Enemy:" + myPlayer.DisplayName + myPlayer.IsBot.ToString());
+                        this.Context.Respond(Plugin.Instance.Config.EnemyNearByChatRespond, (string) null,
+                            (string) null);
+                        return;
+                    }
                 }
             }
 
@@ -95,106 +106,139 @@ namespace VirtualGarage
             {
                 if (player.Character == null)
                     return;
-
-                Log.Warn("VirtualGarage:" + Context.Player.DisplayName + " send *!g save " + gridName + "*");
-
-                VirtualGarageSave.Instance.SaveGrid(player.Character, player.IdentityId, gridName, Context);
+                VirtualGarageCommands.Log.Warn("VirtualGarage:" + this.Context.Player.DisplayName + " send *!g save " +
+                                               gridName + "*");
+                VirtualGarageSave.Instance.SaveGrid(player.Character, player.IdentityId, gridName, this.Context);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Log.Error(e);
+                VirtualGarageCommands.Log.Error<Exception>(ex);
             }
         }
 
         [Command("loadbase", "Load grid from VirtualGarage by number in the same coordinates", null)]
         [Permission(MyPromoteLevel.None)]
-        public void LoadBase(int index)
-        {
-            Load(index, false, true);
-        }
+        public void LoadBase(int index) => this.Load(index, loadbase: true);
 
         [Command("load", "Load grid from VirtualGarage by number", null)]
         [Permission(MyPromoteLevel.None)]
         public void Load(int index, bool spawnDynamic = false, bool loadbase = false)
         {
-            string str = Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString());
-            if (!Directory.Exists(str))
+            if (!Directory.Exists(Path.Combine(Plugin.Instance.Config.PathToVirtualGarage,
+                    this.Context.Player.SteamUserId.ToString())))
             {
-                Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond);
-                return;
+                this.Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond, (string) null,
+                    (string) null);
             }
-
-            var path = Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString());
-            var files = Directory.GetFiles(Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, Context.Player.SteamUserId.ToString()), "*.sbc");
-            var listFiles = new List<string>(files).FindAll(s => s.EndsWith(".sbc"));
-
-            if (files.Length == 0 || listFiles.Count() == 0)
+            else
             {
-                Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond);
-                return;
-            }
-
-            listFiles.SortNoAlloc((s, s1) => string.Compare(s, s1, StringComparison.Ordinal));
-            var gridNameToLoad = listFiles[index - 1];
-            IMyPlayer player = Context.Player;
-
-            if (player == null)
-                return;
-
-            long identityId = player.IdentityId;
-            IMyCharacter character = player.Character;
-
-            _ = MyGravityProviderSystem.CalculateNaturalGravityInPoint(character.GetPosition(), out float naturalGravityMultiplier);
-
-            if (!loadbase && naturalGravityMultiplier > Plugin.Instance.Config.MinAllowedGravityToLoad)
-            {
-                Context.Respond($"{Plugin.Instance.Config.VirtualGarageNotAllowedInGravityMoreThanResponce} > {Plugin.Instance.Config.MinAllowedGravityToLoad}");
-                return;
-            }
-
-            var players = new List<IMyPlayer>();
-            MyAPIGateway.Players.GetPlayers(players);
-
-            foreach (var myPlayer in players)
-            {
-                if (myPlayer.GetRelationTo(identityId) != MyRelationsBetweenPlayerAndBlock.Enemies)
-                    continue;
-
-                if (Vector3D.Distance(myPlayer.GetPosition(), character.GetPosition()) < Plugin.Instance.Config.EnemyPlayerInRange)
+                Path.Combine(Plugin.Instance.Config.PathToVirtualGarage, this.Context.Player.SteamUserId.ToString());
+                string[] files =
+                    Directory.GetFiles(
+                        Path.Combine(Plugin.Instance.Config.PathToVirtualGarage,
+                            this.Context.Player.SteamUserId.ToString()), "*.sbc");
+                System.Collections.Generic.List<string> all =
+                    new System.Collections.Generic.List<string>((IEnumerable<string>) files).FindAll(
+                        (Predicate<string>) (s => s.EndsWith(".sbc")));
+                if (files.Length == 0 || all.Count<string>() == 0)
                 {
-                    Context.Respond(Plugin.Instance.Config.EnemyNearByChatRespond);
-                    return;
+                    this.Context.Respond(Plugin.Instance.Config.NoGridsInVirtualGarageRespond, (string) null,
+                        (string) null);
+                }
+                else
+                {
+                    all.SortNoAlloc<string>((Comparison<string>) ((s, s1) =>
+                        string.Compare(s, s1, StringComparison.Ordinal)));
+                    string str = all[index - 1];
+                    IMyPlayer player = this.Context.Player;
+                    if (player == null)
+                        return;
+                    long identityId = player.IdentityId;
+                    IMyCharacter character1 = player.Character;
+                    float naturalGravityMultiplier;
+                    MyGravityProviderSystem.CalculateNaturalGravityInPoint(character1.GetPosition(),
+                        out naturalGravityMultiplier);
+                    if (!loadbase && (double) naturalGravityMultiplier >
+                        (double) Plugin.Instance.Config.MinAllowedGravityToLoad)
+                    {
+                        this.Context.Respond(
+                            string.Format("{0} > {1}",
+                                (object) Plugin.Instance.Config.VirtualGarageNotAllowedInGravityMoreThanResponce,
+                                (object) Plugin.Instance.Config.MinAllowedGravityToLoad), (string) null, (string) null);
+                    }
+                    else
+                    {
+                        System.Collections.Generic.List<IMyPlayer> players =
+                            new System.Collections.Generic.List<IMyPlayer>();
+                        MyAPIGateway.Players.GetPlayers(players);
+                        foreach (IMyPlayer myPlayer in players)
+                        {
+                            if (myPlayer.GetRelationTo(identityId) == MyRelationsBetweenPlayerAndBlock.Enemies)
+                            {
+                                IMyCharacter character2 = myPlayer.Character;
+                                if (!myPlayer.IsBot && character2 != null && !character2.IsDead &&
+                                    character2.IsPlayer &&
+                                    Vector3D.Distance(myPlayer.GetPosition(), character1.GetPosition()) <
+                                    Plugin.Instance.Config.EnemyPlayerInRange)
+                                {
+                                    VirtualGarageCommands.Log.Warn("Enemy:" + myPlayer.DisplayName +
+                                                                   myPlayer.IsBot.ToString());
+                                    this.Context.Respond(Plugin.Instance.Config.EnemyNearByChatRespond, (string) null,
+                                        (string) null);
+                                    return;
+                                }
+                            }
+                        }
+
+                        Vector3D? spawnPosition = new Vector3D?();
+                        if (!loadbase)
+                            spawnPosition = VirtualGarageLoad.SpawnPosition(character1);
+                        if (loadbase || spawnPosition.HasValue)
+                        {
+                            VirtualGarageLoad.DoSpawnGrids(identityId, str, spawnPosition,
+                                (Delegate.AddListenerDelegate) ((grid, identity) =>
+                                {
+                                    VirtualGarageLoad.AddGps(grid, identity);
+                                    foreach (var myCubeBlock in grid.GetFatBlocks())
+                                    {
+                                        if (myCubeBlock is IMyMotorStator)
+                                        {
+                                            ((IMyMotorStator)myCubeBlock).Attach();
+                                        }
+                                        if (myCubeBlock is IMyShipDrill)
+                                        {
+                                            ((IMyShipDrill)myCubeBlock).Enabled = false;
+                                        }
+                                    }
+                                }), spawnDynamic);
+                            foreach (MyObjectBuilder_CubeGrid cubeGrid in MyBlueprintUtils.LoadPrefab(str)
+                                         .ShipBlueprints[0].CubeGrids)
+                            {
+                                this.Context.Respond(
+                                    Plugin.Instance.Config.GridSpawnedToWorldRespond + " :" + cubeGrid?.DisplayName,
+                                    (string) null, (string) null);
+                                VirtualGarageCommands.Log.Info("Структура: " + cubeGrid?.DisplayName +
+                                                               " перенесена в мир");
+                            }
+
+                            Task.Run(() =>
+                            {
+                                if (File.Exists(str + "_spawned"))
+                                    File.Delete(str + "_spawned");
+                                File.Move(str, str + "_spawned");
+                            });
+
+                        }
+                        else
+                        {
+                            this.Context.Respond(Plugin.Instance.Config.NoRoomToSpawnRespond, (string) null,
+                                (string) null);
+                            VirtualGarageCommands.Log.Info("Слишком много всего вокруг, найдите место посвободнее " +
+                                                           str);
+                        }
+                    }
                 }
             }
-
-            Vector3D? spawnPosition = null;
-            if (!loadbase)
-            {
-                spawnPosition = VirtualGarageLoad.SpawnPosition(character);
-            }
-            
-            if (loadbase || spawnPosition != null)
-            {
-                VirtualGarageLoad.DoSpawnGrids(identityId, gridNameToLoad, spawnPosition, (grid, identity) => VirtualGarageLoad.AddGps(grid, identity), spawnDynamic);
-
-                MyObjectBuilder_Definitions PrefabToLoad = MyBlueprintUtils.LoadPrefab(gridNameToLoad);
-                MyObjectBuilder_CubeGrid[] cubeGridsList = PrefabToLoad.ShipBlueprints[0].CubeGrids;
-                
-                foreach (var GridInList in cubeGridsList)
-                {
-                    Context.Respond($"{Plugin.Instance.Config.GridSpawnedToWorldRespond} :{GridInList?.DisplayName}");
-                    Log.Info("Структура: " + GridInList?.DisplayName + " перенесена в мир");
-                }
-
-                if (File.Exists(gridNameToLoad + "_spawned"))
-                    File.Delete(gridNameToLoad + "_spawned");
-
-                File.Move(gridNameToLoad, gridNameToLoad + "_spawned");
-                return;
-            }
-
-            Context.Respond(Plugin.Instance.Config.NoRoomToSpawnRespond);
-            Log.Info("Слишком много всего вокруг, найдите место посвободнее " + gridNameToLoad);
         }
     }
 }

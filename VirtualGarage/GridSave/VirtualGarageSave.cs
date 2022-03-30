@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using Sandbox.Definitions;
 using Sandbox.Engine.Networking;
@@ -41,7 +42,7 @@ namespace VirtualGarage
 
             if (gridName != string.Empty)
             {
-                MyAPIGateway.Entities.GetEntities(GridSets, (IMyEntity Entity) => Entity is IMyCubeGrid && Entity.DisplayName.Equals(gridName, StringComparison.InvariantCultureIgnoreCase));
+                MyAPIGateway.Entities.GetEntities(GridSets, (IMyEntity Entity) => Entity is IMyCubeGrid && Entity.DisplayName.Equals(gridName, StringComparison.InvariantCultureIgnoreCase) && !((MyCubeGrid)Entity).IsPreview);
                 if (!GridSets.Any())
                 {
                     context.Respond("No such grid exist with name '" + gridName + "' .", "VirtualGarage", "Red");
@@ -59,7 +60,7 @@ namespace VirtualGarage
                         IEntity.Physics.LinearVelocity = new Vector3();
                     }
 
-                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes((MyCubeGrid)IEntity);
+                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical).GetGroupNodes((MyCubeGrid)IEntity);
 
                     if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                     {
@@ -94,7 +95,7 @@ namespace VirtualGarage
                             grid.Physics.LinearVelocity = new Vector3();
                         }
 
-                        GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(grid);
+                        GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical).GetGroupNodes(grid);
 
                         if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                         {
@@ -195,7 +196,7 @@ namespace VirtualGarage
             string gridName = gridsOB[0].DisplayName.Length <= 30
                 ? gridsOB[0].DisplayName
                 : gridsOB[0].DisplayName.Substring(0, 30);
-            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
+            string filenameexported = gridName + "_" + DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks;
 
             MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
             newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
@@ -219,14 +220,16 @@ namespace VirtualGarage
             }
 
             string path = Path.Combine(str, filenameexported + ".sbc");
-            if (MyObjectBuilderSerializer.SerializeXML(path, false, newObject2))
-                MyObjectBuilderSerializer.SerializePB(path + "B5", true, newObject2);
-
-            MyAPIGateway.Utilities.InvokeOnGameThread(() =>
-           {
-               foreach (MyEntity myEntity in myCubeGridList)
-                   myEntity.Close();
-           });
+            Task.Run(() =>
+            {
+                if (MyObjectBuilderSerializer.SerializeXML(path, false, newObject2))
+                    MyObjectBuilderSerializer.SerializePB(path + "B5", true, newObject2);
+                MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                {
+                    foreach (MyEntity myEntity in myCubeGridList)
+                        myEntity.Close();
+                });
+            });
 
             return true;
         }
@@ -296,7 +299,7 @@ namespace VirtualGarage
             string gridName = gridsOB[0].DisplayName.Length <= 30
                 ? gridsOB[0].DisplayName
                 : gridsOB[0].DisplayName.Substring(0, 30);
-            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
+            string filenameexported = gridName  + "_" + DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks;
 
             MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
             newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
