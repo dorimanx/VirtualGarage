@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
@@ -34,7 +35,11 @@ namespace VirtualGarage
                     await Task.Run(() =>
                     {
                         CheckAllGrids(myCubeGrids, PlayersList);
-                        //RemoveTrash(myCubeGrids, PlayersList);
+                    });
+                    await Task.Delay(new Random().Next(60000, 180000));
+                    await Task.Run(() =>
+                    {
+                        RemoveTrash();
                     });
                 }
                 catch (Exception e)
@@ -45,6 +50,28 @@ namespace VirtualGarage
             catch (Exception e)
             {
                 Log.Error(e, "Check old grids start Error");
+            }
+        }
+
+        private void RemoveTrash()
+        {
+            var path = Plugin.Instance.Config.PathToVirtualGarage;
+            var directories = Directory.GetDirectories(path);
+            foreach (var directory in directories)
+            {
+                var files = Directory.GetFiles(directory);
+                foreach (var file in files)
+                {
+                    if (file.EndsWith(".sbcB5"))
+                    {
+                        File.Delete(file);
+                        continue;
+                    }
+                    if (file.EndsWith(".sbc_spawned") && (DateTime.Now - File.GetCreationTime(file)).TotalDays > 7)
+                    {
+                        File.Delete(file);
+                    }
+                }
             }
         }
 
