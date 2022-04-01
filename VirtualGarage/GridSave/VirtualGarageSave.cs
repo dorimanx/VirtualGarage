@@ -96,11 +96,23 @@ namespace VirtualGarage
                         }
 
                         GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical).GetGroupNodes(grid);
-
+                        
+                        context.Player.TryGetBalanceInfo(out long balance);
+                        int pcu = 0;
+                        foreach (var myCubeGrid in GridsGroup)
+                        {
+                            pcu = pcu + myCubeGrid.BlocksPCU;
+                        }
+                        var cost = pcu * Plugin.Instance.Config.SavePcuCost;
+                        if (balance < cost)
+                        {
+                            context.Respond(Plugin.Instance.Config.NotEnoughMoneyMessage);
+                            return;
+                        }
                         if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                         {
+                            context.Player.RequestChangeBalance(-cost);
                             IsItSaved = true;
-                            SelectedGrid = grid;
                             if (grid.BlocksCount > 100)
                                 LastGrid = grid;
                             break;

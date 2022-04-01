@@ -17,6 +17,8 @@ namespace VirtualGarage
         private float _MaxRangeToGrid = 1000;
 
         private int _OldGridDays = 7;
+        private int _LoadPcuCost = 0;
+        private int _SavePcuCost = 0;
         private int _MaxPCUForGridOnSave = 300000;
         private int _MaxBlocksForGridOnSave = 30000;
 
@@ -34,9 +36,17 @@ namespace VirtualGarage
         private string _GridsInVirtualGarageRespond = "List of your grid in garage.";
         private string _NoGridInViewResponce = "There is no grid in view";
         private string _GridToFarResponce = "Grid is too far from you!";
+        private string _NotEnoughMoneyMessage = "Not enough money!";
 
         
-        [DisplayTab(Name = "Min allowed gravity to load", GroupName = "Main settings", Tab = "Main settings", Order = 0, Description = "Min allowed gravity to load")]
+        [DisplayTab(Name = "Not enough money message", GroupName = "Main settings", Tab = "Main settings", Order = 0, Description = "Not enough money message")]
+        public string NotEnoughMoneyMessage
+        {
+            get => _NotEnoughMoneyMessage;
+            set => SetValue(ref _NotEnoughMoneyMessage, value);
+        }
+        
+        [DisplayTab(Name = "Min allowed gravity to use", GroupName = "Main settings", Tab = "Main settings", Order = 0, Description = "Min allowed gravity to use")]
         public float MinAllowedGravityToLoad
         {
             get => _MinAllowedGravityToLoad;
@@ -77,6 +87,13 @@ namespace VirtualGarage
             get => _MaxSpawnRadius;
             set => SetValue(ref _MaxSpawnRadius, value);
         }
+        
+        [DisplayTab(Name = "Load cost for 1 PCU", GroupName = "Load settings", Tab = "Load settings", Order = 0, Description = "Load cost for 1 PCU")]
+        public int LoadPcuCost
+        {
+            get => _LoadPcuCost;
+            set => SetValue(ref _LoadPcuCost, value);
+        }
 
         [DisplayTab(Name = "Max range to grid", GroupName = "Save settings", Tab = "Save settings", Order = 0, Description = "Max range to grid")]
         public float MaxRangeToGrid
@@ -90,6 +107,13 @@ namespace VirtualGarage
         {
             get => _OldGridDays;
             set => SetValue(ref _OldGridDays, value);
+        }
+        
+        [DisplayTab(Name = "Save cost for 1 PCU", GroupName = "Save settings", Tab = "Save settings", Order = 0, Description = "Save cost for 1 PCU")]
+        public int SavePcuCost
+        {
+            get => _SavePcuCost;
+            set => SetValue(ref _SavePcuCost, value);
         }
 
         [DisplayTab(Name = "Max pcu for grid on save", GroupName = "Save settings", Tab = "Save settings", Order = 0, Description = "Max pcu for grid on save")]
