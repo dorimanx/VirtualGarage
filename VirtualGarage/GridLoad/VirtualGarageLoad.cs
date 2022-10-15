@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Game.Entities;
 using Sandbox.Game.GUI;
@@ -8,6 +9,7 @@ using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.ModAPI;
+using VRage.ObjectBuilders;
 using VRageMath;
 
 namespace VirtualGarage
@@ -131,6 +133,12 @@ namespace VirtualGarage
         {
           ((MyCubeGrid) entity).DetectDisconnectsAfterFrame();
           MyAPIGateway.Entities.AddEntity(entity);
+          List<MyObjectBuilder_EntityBase> list = new List<MyObjectBuilder_EntityBase>();
+          foreach (var g in cubeGrids)
+          {
+            list.Add(g);
+          }
+          MyAPIGateway.Multiplayer.SendEntitiesCreated(list);
           addListenerDelegate((MyCubeGrid) entity, masterIdentityId);
         })));
       }
