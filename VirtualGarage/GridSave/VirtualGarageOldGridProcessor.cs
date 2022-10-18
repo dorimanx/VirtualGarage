@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
@@ -31,7 +32,15 @@ namespace VirtualGarage
                     await Task.Delay(30000);
                     var myCubeGrids = MyEntities.GetEntities().OfType<MyCubeGrid>();
                     var PlayersList = MySession.Static.Players.GetAllIdentities().ToList();
-                    await Task.Run(() => { CheckAllGrids(myCubeGrids, PlayersList); });
+                    await Task.Run(() =>
+                    {
+                        CheckAllGrids(myCubeGrids, PlayersList);
+                    });
+                    await Task.Delay(new Random().Next(60000, 180000));
+                    await Task.Run(() =>
+                    {
+                        RemoveTrash();
+                    });
                 }
                 catch (Exception e)
                 {
@@ -44,69 +53,94 @@ namespace VirtualGarage
             }
         }
 
+        private void RemoveTrash()
+        {
+            var path = Plugin.Instance.Config.PathToVirtualGarage;
+            var directories = Directory.GetDirectories(path);
+            foreach (var directory in directories)
+            {
+                var files = Directory.GetFiles(directory);
+                foreach (var file in files)
+                {
+                    if (file.EndsWith(".sbcB5"))
+                    {
+                        File.Delete(file);
+                        continue;
+                    }
+                    if (file.EndsWith(".sbc_spawned") && (DateTime.Now - File.GetCreationTime(file)).TotalDays > 7)
+                    {
+                        File.Delete(file);
+                    }
+                }
+            }
+        }
+
         private void CheckAllGrids(IEnumerable<MyCubeGrid> myCubeGrids, List<MyIdentity> PlayersList)
         {
-            List<MyCubeGrid> GridsGroup = new List<MyCubeGrid>();
-
-            foreach (var myCubeGrid in myCubeGrids)
+            foreach (MyCubeGrid myCubeGrid1 in myCubeGrids)
             {
-                if (myCubeGrid is null || myCubeGrid.Closed || myCubeGrid.MarkedForClose)
-                    continue;
-
-                MyAPIGateway.Utilities.InvokeOnGameThread(() =>
-                {
-                    try
+                MyCubeGrid myCubeGrid = myCubeGrid1;
+                List<MyCubeGrid> GridsGroup = new List<MyCubeGrid>();
+                if (myCubeGrid != null && !myCubeGrid.Closed && !myCubeGrid.MarkedForClose)
+                    MyAPIGateway.Utilities.InvokeOnGameThread((Action) (() =>
                     {
-                        if (myCubeGrid.DisplayName.Contains("@"))
-                            return;
-
-                        var bigOwners = myCubeGrid.BigOwners;
-                        if (bigOwners == null || bigOwners.Count < 1)
-                            return;
-
-                        var owner = bigOwners.FirstOrDefault();
-
-                        if (MySession.Static.Players.IdentityIsNpc(owner))
-                            return;
-
-                        var steamId = MySession.Static.Players.TryGetSteamId(owner);
-                        if (steamId == 0)
-                            return;
-
-                        var MyidentityById = Sync.Players.TryGetIdentity(owner);
-                        if (MyidentityById is null)
-                            return;
-
-                        var lastLogoutTime = MyidentityById.LastLogoutTime;
-                        var totalDays = (DateTime.Now - lastLogoutTime).TotalDays;
-
-                        if (totalDays > Plugin.Instance.Config.OldGridDays)
+                        try
                         {
-                            GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(myCubeGrid);
-                            if (GridsGroup is null)
+                            if (myCubeGrid.DisplayName.Contains("@"))
                                 return;
-
-                            var PlayerName = owner.ToString();
-
-                            foreach (var PlayerEntity in PlayersList)
+                            List<long> bigOwners = myCubeGrid.BigOwners;
+                            if (bigOwners == null || bigOwners.Count < 1)
+                                return;
+                            long identityId = bigOwners.FirstOrDefault<long>();
+                            if (MySession.Static.Players.IdentityIsNpc(identityId) ||
+                                MySession.Static.Players.TryGetSteamId(identityId) == 0UL)
+                                return;
+                            MyIdentity identity = Sync.Players.TryGetIdentity(identityId);
+                            if (identity == null)
+                                return;
+                            try
                             {
-                                if (PlayerEntity != null && PlayerEntity.IdentityId == MyidentityById.IdentityId)
-                                    PlayerName = PlayerEntity.DisplayName;
+                                if (Plugin.Instance.Config.OldGridDays == 0)
+                                {
+                                    Log.Warn("Приберём его грид " +
+                                                                           myCubeGrid.DisplayName + " в гараж");
+                                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical)
+                                        .GetGroupNodes(myCubeGrid);
+                                    VirtualGarageSave.Instance.SaveOldGridToVirtualGarage(identityId, GridsGroup);
+                                    return;
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error("Ошибка", ex);
                             }
 
-                            if (PlayerName == string.Empty)
-                                PlayerName = "Unknown BOB";
+                            double totalDays = (DateTime.Now - identity.LastLogoutTime).TotalDays;
+                            if (totalDays <= (double) Plugin.Instance.Config.OldGridDays)
+                                return;
+                            GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical)
+                                .GetGroupNodes(myCubeGrid);
+                            if (GridsGroup == null)
+                                return;
+                            string str = identityId.ToString();
+                            foreach (MyIdentity players in PlayersList)
+                            {
+                                if (players != null && players.IdentityId == identity.IdentityId)
+                                    str = players.DisplayName;
+                            }
 
-                            Log.Warn("Товарища " + PlayerName + " нет с нами уже " + totalDays + " дней, приберём его грид " + myCubeGrid.DisplayName + " в гараж");
-
-                            VirtualGarageSave.Instance.SaveOldGridToVirtualGarage(owner, GridsGroup);
+                            if (str == string.Empty)
+                                str = "Unknown BOB";
+                            Log.Warn("Товарища " + str + " нет с нами уже " +
+                                                                   totalDays + " дней, приберём его грид " +
+                                                                   myCubeGrid.DisplayName + " в гараж");
+                            VirtualGarageSave.Instance.SaveOldGridToVirtualGarage(identityId, GridsGroup);
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e, "Check old grid EXCEPTION");
-                    }
-                });
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "Check old grid EXCEPTION");
+                        }
+                    }));
             }
         }
     }

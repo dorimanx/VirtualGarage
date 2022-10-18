@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NLog;
 using Sandbox.Definitions;
 using Sandbox.Engine.Networking;
@@ -41,7 +42,7 @@ namespace VirtualGarage
 
             if (gridName != string.Empty)
             {
-                MyAPIGateway.Entities.GetEntities(GridSets, (IMyEntity Entity) => Entity is IMyCubeGrid && Entity.DisplayName.Equals(gridName, StringComparison.InvariantCultureIgnoreCase));
+                MyAPIGateway.Entities.GetEntities(GridSets, (IMyEntity Entity) => Entity is IMyCubeGrid && Entity.DisplayName.Equals(gridName, StringComparison.InvariantCultureIgnoreCase) && !((MyCubeGrid)Entity).IsPreview);
                 if (!GridSets.Any())
                 {
                     context.Respond("No such grid exist with name '" + gridName + "' .", "VirtualGarage", "Red");
@@ -59,7 +60,7 @@ namespace VirtualGarage
                         IEntity.Physics.LinearVelocity = new Vector3();
                     }
 
-                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes((MyCubeGrid)IEntity);
+                    GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical).GetGroupNodes((MyCubeGrid)IEntity);
 
                     if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                     {
@@ -94,14 +95,27 @@ namespace VirtualGarage
                             grid.Physics.LinearVelocity = new Vector3();
                         }
 
-                        GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Logical).GetGroupNodes(grid);
-
+                        GridsGroup = MyCubeGridGroups.Static.GetGroups(GridLinkTypeEnum.Mechanical).GetGroupNodes(grid);
+                        
+                        context.Player.TryGetBalanceInfo(out long balance);
+                        int pcu = 0;
+                        foreach (var myCubeGrid in GridsGroup)
+                        {
+                            pcu = pcu + myCubeGrid.BlocksPCU;
+                        }
+                        var cost = pcu * Plugin.Instance.Config.SavePcuCost;
+                        if (balance < cost)
+                        {
+                            context.Respond(Plugin.Instance.Config.NotEnoughMoneyMessage);
+                            return;
+                        }
                         if (SaveGridToVirtualGarage(identityId, GridsGroup, context))
                         {
+                            context.Player.RequestChangeBalance(-cost);
                             IsItSaved = true;
-                            SelectedGrid = grid;
                             if (grid.BlocksCount > 100)
                                 LastGrid = grid;
+                            break;
                         }
                     }
                 }
@@ -194,7 +208,7 @@ namespace VirtualGarage
             string gridName = gridsOB[0].DisplayName.Length <= 30
                 ? gridsOB[0].DisplayName
                 : gridsOB[0].DisplayName.Substring(0, 30);
-            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
+            string filenameexported = gridName + "_" + DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks;
 
             MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
             newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
@@ -218,14 +232,16 @@ namespace VirtualGarage
             }
 
             string path = Path.Combine(str, filenameexported + ".sbc");
-            if (MyObjectBuilderSerializer.SerializeXML(path, false, newObject2))
-                MyObjectBuilderSerializer.SerializePB(path + "B5", true, newObject2);
-
-            MyAPIGateway.Utilities.InvokeOnGameThread(() =>
-           {
-               foreach (MyEntity myEntity in myCubeGridList)
-                   myEntity.Close();
-           });
+            Task.Run(() =>
+            {
+                if (MyObjectBuilderSerializer.SerializeXML(path, false, newObject2))
+                    MyObjectBuilderSerializer.SerializePB(path + "B5", true, newObject2);
+                MyAPIGateway.Utilities.InvokeOnGameThread(() =>
+                {
+                    foreach (MyEntity myEntity in myCubeGridList)
+                        myEntity.Close();
+                });
+            });
 
             return true;
         }
@@ -240,6 +256,18 @@ namespace VirtualGarage
 
             foreach (MyCubeGrid сubeGrid in myCubeGridList)
             {
+                
+                var bigOwners = сubeGrid.BigOwners;
+                if (bigOwners != null)
+                {
+                    if (!AllOwnersOld(bigOwners))
+                    {
+                        continue;
+                    }
+                }
+
+                var owner = bigOwners.FirstOrDefault();
+
                 totalpcu += сubeGrid.BlocksPCU;
                 totalblocks += сubeGrid.BlocksCount;
 
@@ -283,7 +311,7 @@ namespace VirtualGarage
             string gridName = gridsOB[0].DisplayName.Length <= 30
                 ? gridsOB[0].DisplayName
                 : gridsOB[0].DisplayName.Substring(0, 30);
-            string filenameexported = DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks + "_" + gridName;
+            string filenameexported = gridName  + "_" + DateTime.Now.ToShortDateString() + "_" + DateTime.Now.ToShortTimeString() + "_P-" + totalpcu + "_B-" + totalblocks;
 
             MyObjectBuilder_ShipBlueprintDefinition newObject1 = MyObjectBuilderSerializer.CreateNewObject<MyObjectBuilder_ShipBlueprintDefinition>();
             newObject1.Id = new MyDefinitionId(new MyObjectBuilderType(typeof(MyObjectBuilder_ShipBlueprintDefinition)), MyUtils.StripInvalidChars(filenameexported));
@@ -316,6 +344,25 @@ namespace VirtualGarage
                     myEntity.Close();
             });
 
+            return true;
+        }
+
+        private static bool AllOwnersOld(List<long> bigOwners)
+        {
+            foreach (var bigOwner in bigOwners)
+            {
+                var MyidentityById = Sync.Players.TryGetIdentity(bigOwner);
+                if (MyidentityById is null)
+                    continue;
+
+                var lastLogoutTime = MyidentityById.LastLogoutTime;
+                var totalDays = (DateTime.Now - lastLogoutTime).TotalDays;
+
+                if (totalDays < Plugin.Instance.Config.OldGridDays)
+                {
+                    return false;
+                }
+            }
             return true;
         }
 
